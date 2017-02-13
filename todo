@@ -1,0 +1,160 @@
+#!/usr/local/bin/node
+
+process.stdin.resume();
+process.stdin.setEncoding('utf8');
+var util = require('util');
+
+var colors = require("colors/safe")
+
+var fs = require("fs");
+
+var todoFile = fs.readFileSync("path-to-todo.md").toString();
+
+var lines = todoFile.split("\n");
+
+var todos;
+
+var todoIndex = 0;
+
+todos = lines.map(function(line, index){
+    if(line.trim() && line.trim()[0] !== "#"){
+    
+    var content = line.trim();
+    var complete = false;
+    //Get rid of the dash
+    content = content.substring(1).trim();
+
+    if(content[0] === "\u221A"){
+      complete = true;
+      content = content.substring(1);
+    }
+
+    return {
+      index: todoIndex++,
+      content: content,
+      complete: complete,
+      line: index
+    }
+  }
+});
+todos = todos.filter(function(todo){
+  return !!todo;
+})
+
+function printTodos(what){
+  if(what === "completed"){
+    compare = true;
+  }
+  else{
+    compare = false;
+  }
+  todos.forEach(function(todo){
+    var text = "["+todo.index+"] " + todo.content;
+    if(todo.complete){
+      text = colors.green(text);
+    }
+    if(what){
+      if(compare === todo.complete){
+        console.log(text);
+      }
+    }
+    else{
+      console.log(text);
+    }
+  })
+}
+
+function prompt(what){
+  printTodos(what);
+  var done = 0;
+  var total = 0;
+  todos.forEach(function(todo){
+    total ++;
+    if(todo.complete){
+      done++;
+    }
+  })
+  console.log(done+"/"+total+" completed");
+  process.stdout.write("> ");
+}
+var show = "todo";
+prompt(show);
+process.stdin.on("data", function(data){
+  var command = data.trim().split(" ");
+  
+  switch(command[0]){
+    case "complete":{
+      if(!command[1]){
+        console.log("no todo to complete!");
+      }
+      else{
+        todos.forEach(function(todo){
+          if(todo.index === parseInt(command[1], 10)){
+            lines[todo.line] = "- \u221A" + todo.content;
+            todo.complete = true;
+            fs.writeFileSync("/users/claym/work/get_this_shit_done_.md", lines.join("\n"));
+          }
+        })
+      }
+    }break;
+    case "open": {
+      if(!command[1]){
+        console.log("no todo to open!");
+      }
+      else{
+        todos.forEach(function(todo){
+          if(todo.index === parseInt(command[1], 10)){
+            lines[todo.line] = "- " + todo.content;
+            todo.complete = false;
+            fs.writeFileSync("/users/claym/work/get_this_shit_done_.md", lines.join("\n"));
+          }
+        })
+      }
+    }break;
+
+    case "remove": {
+      todos.forEach(function(todo, i){
+        if(todo.index === parseInt(command[1], 10)){
+          lines[todo.line] = "";
+          todos.splice(i, 1);
+          fs.writeFileSync("/users/claym/work/get_this_shit_done_.md", lines.join("\n"));
+        }
+      });
+    }break;
+
+    case "add": {
+      var todo = command.splice(1);
+      todo = todo.join(" ");
+      todos.push({
+        complete: false,
+        content: todo,
+        line: lines.length,
+        index: todos.length
+      });
+      lines.push("- "+todo);
+      fs.writeFileSync("/users/claym/work/get_this_shit_done_.md", lines.join("\n"));
+    }break;
+
+    case "exit":{
+      console.log("bye!");
+      process.exit(0);
+    }break;
+
+    case "show":{
+      if(command[1] === "all"){
+        show = "";
+      }
+      else{
+
+
+        show = command[1];
+      }
+    }break;
+    default:{
+      console.log("I didn't understand that command");
+      
+    }
+  }
+  prompt(show);
+})
+
